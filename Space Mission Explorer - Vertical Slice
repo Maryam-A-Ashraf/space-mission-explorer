@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Space Mission Explorer — Vertical Slice</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{color-scheme:dark;--bg:#03060f;--panel:rgba(6,14,32,.72);--line:rgba(80,200,255,.28);--cy:#4fd8ff;--or:#ff9d3c;--gd:#ffd36b;--tx:#fff;--mu:#9db4d0;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--tx);font-family:'Rajdhani',system-ui,-apple-system,'Segoe UI',sans-serif;overflow:hidden;font-size:16px}
+canvas{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+.p{background:var(--panel);border:1px solid var(--line);border-radius:12px;backdrop-filter:blur(8px)}
+button{font:inherit;font-weight:600;color:var(--tx);background:rgba(20,40,80,.6);border:1px solid var(--line);border-radius:8px;padding:6px 12px;cursor:pointer}
+button:hover{border-color:var(--cy)}button.on{background:rgba(79,216,255,.25);border-color:var(--cy)}
+#hud{position:fixed;top:calc(env(safe-area-inset-top,0px) + 10px);left:10px;padding:10px 14px;min-width:210px;display:none}
+#hud h1{margin:0;font-size:17px;letter-spacing:.12em;color:var(--cy)}
+.badge{display:inline-block;margin:4px 0 6px;padding:1px 8px;border:1px solid var(--or);color:var(--or);border-radius:20px;font-size:12px;letter-spacing:.08em}
+.row{display:flex;justify-content:space-between;gap:14px;font-size:15px}.row span:first-child{color:var(--mu)}
+#phase{font-weight:700;color:var(--gd)}
+#cams{position:fixed;top:calc(env(safe-area-inset-top,0px) + 10px);right:10px;display:none;gap:6px;flex-wrap:wrap;justify-content:flex-end;max-width:60vw}
+#toast{position:fixed;top:14%;left:50%;transform:translateX(-50%);padding:10px 22px;font-size:22px;font-weight:700;letter-spacing:.1em;border-color:var(--or);color:var(--gd);opacity:0;transition:opacity .5s;pointer-events:none;text-align:center}
+#bubble{position:fixed;left:10px;bottom:96px;max-width:min(380px,calc(100vw - 20px));display:none;gap:10px;padding:10px 12px;align-items:flex-start}
+#bubble svg{flex:0 0 44px;animation:fl 3s ease-in-out infinite}@keyframes fl{50%{transform:translateY(-4px)}}
+#bubble b{color:var(--cy);letter-spacing:.1em}#bubble p{margin:2px 0 0;font-size:15px;line-height:1.3}
+#bar{position:fixed;left:10px;right:10px;bottom:calc(env(safe-area-inset-bottom,0px) + 10px);padding:10px 14px;display:none;align-items:center;gap:12px;flex-wrap:wrap}
+#tl{position:relative;flex:1 1 240px;height:30px;cursor:pointer;touch-action:none}
+#trk{position:absolute;left:0;right:0;top:12px;height:6px;border-radius:4px;background:rgba(255,255,255,.14)}
+#fill{position:absolute;left:0;top:12px;height:6px;border-radius:4px;background:linear-gradient(90deg,#3aa0ff,#4fd8ff,#ffd36b,#b48cff,#ff7a3c)}
+.mk{position:absolute;top:6px;width:12px;height:18px;margin-left:-6px;border-radius:6px;background:var(--gd);border:2px solid var(--bg);cursor:pointer;opacity:.9}
+.mk:hover{background:#fff}#met{font-weight:700;min-width:118px;font-size:17px}
+.ov{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:16px;overflow:auto;background:radial-gradient(ellipse at center,rgba(3,6,15,.35),rgba(3,6,15,.85))}
+.card{max-width:720px;width:100%;padding:24px 28px}.card h2{margin:0 0 4px;letter-spacing:.14em;color:var(--cy)}
+.big{font-size:clamp(28px,6vw,52px);letter-spacing:.2em;margin:0;font-weight:700}.sub{color:var(--mu);margin:6px 0 16px}
+.mc{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0}.m{flex:1 1 180px;padding:12px;border:1px solid var(--line);border-radius:10px;background:rgba(10,24,52,.6);cursor:pointer}
+.m.lock{opacity:.45;cursor:not-allowed}.m.sel{border-color:var(--or)}.m b{display:block;color:var(--gd)}
+.chips span{display:inline-block;margin:2px 4px 2px 0;padding:2px 10px;border-radius:14px;font-size:13px;color:#001}
+dl{display:grid;grid-template-columns:110px 1fr;gap:4px 12px;margin:10px 0}dt{color:var(--mu)}dd{margin:0}
+.note{border-left:3px solid var(--or);padding:6px 10px;color:var(--mu);font-size:14px;margin:10px 0;background:rgba(255,157,60,.07)}
+.opts{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+#cd{display:none;pointer-events:none;background:none;align-items:flex-end;padding-bottom:18vh;text-align:center}
+#sum{display:none}#ovB{background:linear-gradient(90deg,rgba(3,6,15,.9),rgba(3,6,15,.04) 72%);justify-content:flex-start}#ovB .card{max-width:470px}.lb{position:fixed;transform:translateX(-50%);pointer-events:none;font-weight:700;letter-spacing:.14em;font-size:13px;color:var(--cy);text-shadow:0 0 6px #000;display:none}ul.ev{padding-left:18px;margin:8px 0}ul.ev li{margin:3px 0}
+button:disabled{opacity:.4;cursor:not-allowed}
+.scr{background:none;pointer-events:none;flex-direction:column;justify-content:space-between;align-items:center;padding:3vh 16px 3.5vh;text-align:center}.scr>*{pointer-events:auto}
+.eb{color:var(--cy);letter-spacing:.3em;font-size:clamp(11px,1.6vh,14px)}
+.ttl{margin:2px 0 0;font-weight:700;line-height:1;letter-spacing:.16em;font-size:min(7.2vw,8vh);text-shadow:0 0 24px rgba(79,216,255,.35)}.ttl small{display:block;font-size:.5em;letter-spacing:.42em;color:var(--mu);margin-bottom:.15em}
+.mbot{display:flex;flex-direction:column;align-items:center;gap:10px;width:100%;max-width:560px}
+.modes{display:flex;gap:10px;width:100%}.md{flex:1;text-align:left;padding:8px 12px;background:rgba(6,14,32,.78)}.md b{display:block;color:var(--gd)}.md small{color:var(--mu);font-weight:500;font-size:13px;line-height:1.2;display:block}.md.on{border-color:var(--or);background:rgba(255,157,60,.16)}
+.cta{font-size:clamp(18px,3vh,24px);letter-spacing:.24em;padding:10px 34px;border-radius:30px;border-color:var(--or);background:rgba(255,157,60,.22);box-shadow:0 0 24px rgba(255,157,60,.35)}
+.avs{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin:14px 0}.av{padding:14px 10px;text-align:center;border:1px solid var(--line);border-radius:12px;background:rgba(10,24,52,.6);cursor:pointer}.av:hover{border-color:var(--cy)}.av svg{width:88px;height:88px;animation:fl 3s ease-in-out infinite}.av b{display:block;color:var(--gd);letter-spacing:.08em;margin-top:4px}.av small{color:var(--mu)}.av.sel{border-color:var(--or);background:rgba(255,157,60,.12)}
+#fade{position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;transition:opacity .4s}
+.wide{max-width:1100px}.gr{display:grid;grid-template-columns:1fr 310px;gap:14px}@media (max-width:800px){.gr{grid-template-columns:1fr}}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}.og{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:8px}.opt{padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:rgba(10,24,52,.6);cursor:pointer}.opt:hover{border-color:var(--cy)}.opt.sel{border-color:var(--or);background:rgba(255,157,60,.14)}.opt b{display:block;color:var(--gd)}.opt small{color:var(--mu);font-size:13px}.ro{opacity:.4;pointer-events:none}
+h3{margin:14px 0 6px;font-size:16px;letter-spacing:.08em;color:var(--cy)}h3 small{color:var(--or);font-weight:500;margin-left:6px}.tip{color:var(--mu);font-size:14px;margin:6px 0}
+.mt{margin:7px 0}.bar{height:7px;border-radius:4px;background:rgba(255,255,255,.14);overflow:hidden}.bar i{display:block;height:100%}.dash{padding:12px 14px;align-self:start}.dash h3{margin-top:0}
+#sim{position:static;inset:auto;width:100%;height:auto;max-width:520px;border-radius:10px;border:1px solid var(--line)}.big2{font-size:54px;font-weight:700;color:var(--gd);line-height:1}.pills span{display:inline-block;margin:3px 6px 3px 0;padding:3px 12px;border-radius:14px;font-size:14px;border:1px solid var(--line)}.okp{color:#5dff9a;border-color:#5dff9a!important}.badp{color:#ff7a7a;border-color:#ff7a7a!important}
+textarea,input{font:inherit;color:var(--tx);background:rgba(6,14,32,.8);border:1px solid var(--line);border-radius:8px;padding:6px 8px;width:100%;box-sizing:border-box}
+@media (max-height:520px){.md small{display:none}.mbot{gap:6px}}
+
+#stu .card.wide {
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+#stu #v1 {
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  flex: 1;
+}
+#stu .card.wide > .row:first-child,
+#stu .tabs {
+  position: sticky;
+  top: 0;
+  background: var(--panel);
+  z-index: 10;
+  padding-bottom: 6px;
+  backdrop-filter: blur(8px);
+}
+</style></head><body>
+<canvas id="c"></canvas>
+
+<div id="hud" class="p"><h1>HELIOS-1</h1><span class="badge">TRAJECTORY: ILLUSTRATIVE</span>
+<div class="row"><span>Phase</span><span id="phase">—</span></div>
+<div class="row"><span>From Earth</span><span id="dE">—</span></div>
+<div class="row"><span>From Moon</span><span id="dM">—</span></div></div>
+
+<div id="cams"><button data-m="follow">1 Follow</button><button data-m="earth">2 Earth</button><button data-m="moon">3 Moon</button><button data-m="overview">4 Overview</button>
+<button id="cine" class="on">Cinema: On</button><button id="bComp">Companion</button><button id="bVoice">Voice: Off</button><button id="bSnd">Sound</button></div>
+
+<div class="lb" id="lbE">EARTH</div><div class="lb" id="lbM">MOON</div><div id="toast" class="p"></div>
+<div id="bubble" class="p"><svg viewBox="0 0 44 44" width="44" height="44"><circle cx="22" cy="24" r="16" fill="#0d2347" stroke="#4fd8ff" stroke-width="2"/><rect x="11" y="18" width="22" height="9" rx="4" fill="#03060f"/><circle cx="17" cy="22.5" r="2.5" fill="#4fd8ff"/><circle cx="27" cy="22.5" r="2.5" fill="#4fd8ff"/><line x1="22" y1="8" x2="22" y2="3" stroke="#4fd8ff" stroke-width="2"/><circle cx="22" cy="3" r="2" fill="#ffd36b"/></svg><div><b>AURA</b><p id="bt"></p></div></div>
+
+<div id="bar" class="p"><button id="bPlay">Pause</button><button id="bSpd">Speed 1×</button>
+<div id="tl"><div id="trk"></div><div id="fill"></div></div><div id="met">D+0 00:00</div></div>
+
+<div id="ovM" class="ov scr"><div><div class="eb">HELIOS STATION · MISSION HUB</div><h1 class="ttl"><small>SPACE MISSION</small>EXPLORER</h1></div>
+<div class="mbot"><div class="eb">CHOOSE HOW TO EXPLORE</div>
+<div class="modes"><button class="md on" data-x="guided"><b>Guided Tour</b><small>Cinematic camera and a companion narrating each phase</small></button><button class="md" data-x="free"><b>Free Explore</b><small>Take control of the camera and look anywhere</small></button></div>
+<button id="bStart" class="cta">START MISSION</button></div></div>
+
+<div id="ovAv" class="ov" style="display:none"><div class="card p"><h2>CHOOSE YOUR COMPANION</h2><p class="sub">Your companion guides you through every phase of the mission.</p>
+<div class="avs">
+<div class="av" data-i="1"><svg viewBox="0 0 44 44"><rect x="12" y="30" width="20" height="12" rx="5" fill="#e8eef8"/><rect x="19" y="34" width="6" height="4" rx="1" fill="#ff9d3c"/><circle cx="22" cy="19" r="15" fill="#f4f7fc" stroke="#9db4d0" stroke-width="1.5"/><rect x="11" y="12" width="22" height="15" rx="7" fill="#0d2347" stroke="#4fd8ff" stroke-width="1.5"/><ellipse cx="17" cy="16" rx="4" ry="2" fill="#4fd8ff" opacity=".5"/></svg><b>ASTRONAUT</b><small>Friendly human guide · NOVA</small></div>
+<div class="av" data-i="0"><svg viewBox="0 0 44 44"><circle cx="22" cy="24" r="16" fill="#0d2347" stroke="#4fd8ff" stroke-width="2"/><rect x="11" y="18" width="22" height="9" rx="4" fill="#03060f"/><circle cx="17" cy="22.5" r="2.5" fill="#4fd8ff"/><circle cx="27" cy="22.5" r="2.5" fill="#4fd8ff"/><line x1="22" y1="8" x2="22" y2="3" stroke="#4fd8ff" stroke-width="2"/><circle cx="22" cy="3" r="2" fill="#ffd36b"/></svg><b>AI ROBOT</b><small>Precise mission assistant · AURA</small></div>
+<div class="av" data-i="2"><svg viewBox="0 0 44 44"><circle cx="22" cy="22" r="15" fill="none" stroke="#9db4d0" stroke-width="2" stroke-dasharray="4 4"/><line x1="12" y1="32" x2="32" y2="12" stroke="#9db4d0" stroke-width="2"/></svg><b>CONTINUE WITHOUT AVATAR</b><small>Explore on your own</small></div></div>
+<button id="bAvBack">Back</button> <button id="bAvOk" class="on" disabled>Continue</button></div></div>
+
+<div id="stu" class="ov" style="display:none"><div class="card p wide">
+<div class="row"><h2 style="margin:0">MISSION DESIGN STUDIO</h2><span class="badge" id="cml"></span></div>
+<div id="v1"><div class="tabs" id="tabs"></div><div class="gr"><div id="pane"></div><div class="dash p" id="dash"></div></div>
+<div class="opts"><button id="sBack">Back</button><button id="sSim" class="on">LAUNCH &amp; SIMULATE</button></div></div>
+<div id="v2" style="display:none"><h3>MISSION OPERATIONS · LIVE</h3><div class="gr"><div><canvas id="sim" width="520" height="260"></canvas><div class="note" id="slab">Countdown…</div></div><div><div id="tel"></div><ul class="ev" id="slog"></ul></div></div></div>
+<div id="v3" style="display:none"></div></div></div>
+<div id="fade"></div>
+
+<div id="ovA" class="ov" style="display:none"><div class="card p">
+<h2>MISSION SELECT</h2><p class="sub">You are aboard Helios Station, the Mission Hub. Pick your mission to begin.</p>
+<div class="mc">
+<div class="m sel" data-x="design"><b>MISSION DESIGN STUDIO</b>Design, launch and manage your own mission<br><small>3 scenarios · 4 difficulties · solo or team of up to 4</small></div>
+<div class="m" data-x="demo" id="mSel"><b>HELIOS-1 FLIGHT DEMO</b>3D lunar free-return flyby<br><small>Earth → Moon → Earth · ~7.4 days</small></div></div>
+<button id="bBack0">Back</button> <button id="bEnter" class="on">Continue</button></div></div>
+
+<div id="ovB" class="ov" style="display:none"><div class="card p">
+<h2>MISSION BRIEFING · HELIOS-1</h2>
+<dl><dt>Objective</dt><dd>Fly a crewed capsule around the Moon and return safely using a free-return trajectory.</dd>
+<dt>Destination</dt><dd>The Moon (far-side flyby), then home to Earth.</dd>
+<dt>Spacecraft</dt><dd>Crew capsule + service module with solar arrays (illustrative model).</dd>
+<dt>Duration</dt><dd>About 7 days 10 hours of mission time.</dd></dl>
+<div class="chips"><span style="background:#3aa0ff">Ascent &amp; Earth orbit</span><span style="background:#ff9d3c">Trans-lunar burn</span><span style="background:#4fd8ff">Outbound coast</span><span style="background:#ffd36b">Lunar flyby</span><span style="background:#b48cff">Return coast</span><span style="background:#ff7a3c">Re-entry</span></div>
+<div class="note"><b>Data integrity:</b> the flight path is a hand-shaped <b>illustrative</b> curve, not a GMAT result. Earth, Moon and their distance are at true relative scale; the spacecraft, its parking orbit and the glow effects are enlarged for visibility. The Moon is held fixed.</div>
+<div class="opts"><button id="oComp" class="on">Companion: AURA robot</button><button id="oVoice">Voice narration: Off</button><button id="oSnd" class="on">Sound: On</button></div>
+<button id="bBack">Back</button> <button id="bGo" class="on">LAUNCH</button></div></div>
+
+<div id="cd" class="ov"><p class="big" id="cdt"></p></div>
+
+<div id="sum" class="ov"><div class="card p"><h2>MISSION SUMMARY · HELIOS-1</h2>
+<p class="sub">Splashdown confirmed. Crew and spacecraft returned safely (illustrative mission).</p><ul class="ev" id="sumL"></ul>
+<div class="note">Route: low Earth orbit → translunar injection → far-side lunar flyby → free return to Earth. Next step: replace this illustrative path with a validated GMAT trajectory.</div>
+<button id="bRe" class="on">Replay mission</button> <button id="bCl">Keep exploring</button></div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const $=s=>document.querySelector(s),cv=$('#c'),RE=6371;
+const scene=new THREE.Scene(),cam=new THREE.PerspectiveCamera(50,1,.05,7000);
+const ren=new THREE.WebGLRenderer({canvas:cv,antialias:true});ren.setPixelRatio(Math.min(devicePixelRatio,2));
+function rs(){ren.setSize(innerWidth,innerHeight,false);cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();window.onRz&&window.onRz()}addEventListener('resize',rs);rs();
+
+/* procedural textures */
+const h2=(x,y)=>{const n=Math.sin(x*127.1+y*311.7)*43758.5453;return n-Math.floor(n)};
+function vn(x,y){const i=Math.floor(x),j=Math.floor(y),fx=x-i,fy=y-j,u=fx*fx*(3-2*fx),v=fy*fy*(3-2*fy);return h2(i,j)*(1-u)*(1-v)+h2(i+1,j)*u*(1-v)+h2(i,j+1)*(1-u)*v+h2(i+1,j+1)*u*v}
+function fbm(x,y){let s=0,a=.5;for(let k=0;k<5;k++){s+=a*vn(x,y);x*=2;y*=2;a/=2}return s}
+function mk(w,h,f){const c=document.createElement('canvas');c.width=w;c.height=h;const g=c.getContext('2d'),d=g.createImageData(w,h);
+ for(let y=0;y<h;y++)for(let x=0;x<w;x++){const p=f(x/w,y/h),i=(y*w+x)*4;d.data[i]=p[0];d.data[i+1]=p[1];d.data[i+2]=p[2];d.data[i+3]=p[3]}
+ g.putImageData(d,0,0);return new THREE.CanvasTexture(c)}
+function glowTex(){const c=document.createElement('canvas');c.width=c.height=128;const g=c.getContext('2d'),r=g.createRadialGradient(64,64,0,64,64,64);
+ r.addColorStop(0,'rgba(255,255,255,1)');r.addColorStop(.25,'rgba(255,255,255,.5)');r.addColorStop(1,'rgba(255,255,255,0)');g.fillStyle=r;g.fillRect(0,0,128,128);return new THREE.CanvasTexture(c)}
+const GL=glowTex();
+const sprite=(col,op=1)=>new THREE.Sprite(new THREE.SpriteMaterial({map:GL,color:col,transparent:true,opacity:op,blending:THREE.AdditiveBlending,depthWrite:false}));
+
+/* world */
+scene.add(new THREE.AmbientLight(0x2a3d66,.55));
+const sun=new THREE.DirectionalLight(0xfff2dd,1.7);sun.position.set(300,110,200);scene.add(sun);
+const earth=new THREE.Mesh(new THREE.SphereGeometry(2,64,48),new THREE.MeshPhongMaterial({shininess:8,map:mk(1280,640,(u,v)=>{const n=fbm(u*7,v*3.5),l=Math.abs(v-.5)*2;if(l>.9)return[235,242,250,255];
+ if(n>.54){const d=Math.min(1,(n-.54)*5);return[60+d*70+l*40,125-d*35,55+d*10,255]}const o=fbm(u*20+9,v*10);return[10,40+n*70+o*20,100+n*110,255]})}));scene.add(earth);
+const clouds=new THREE.Mesh(new THREE.SphereGeometry(2.03,48,36),new THREE.MeshPhongMaterial({transparent:true,depthWrite:false,map:mk(1024,512,(u,v)=>[255,255,255,Math.max(0,fbm(u*9+3,v*5)-.48)*520])}));scene.add(clouds);
+scene.add(new THREE.Mesh(new THREE.SphereGeometry(2.3,48,36),new THREE.ShaderMaterial({side:THREE.BackSide,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false,
+ vertexShader:'varying vec3 n;void main(){n=normalize(normalMatrix*normal);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
+ fragmentShader:'varying vec3 n;void main(){float i=pow(max(0.,.72-dot(n,vec3(0,0,1.))),3.);gl_FragColor=vec4(.3,.6,1.,1.)*i*1.6;}'})));
+const MOON=new THREE.Vector3(120,0,0);
+const moon=new THREE.Mesh(new THREE.SphereGeometry(.545,40,30),new THREE.MeshLambertMaterial({map:mk(256,128,(u,v)=>{let g=150+fbm(u*10,v*5)*90+(vn(u*90,v*45)-.5)*45;if(fbm(u*3+5,v*2)>.58)g*=.62;return[g,g*.98,g*.94,255]})}));moon.position.copy(MOON);scene.add(moon);
+{const N=2600,p=new Float32Array(N*3),c=new Float32Array(N*3);for(let i=0;i<N;i++){const a=Math.random()*6.283,b=Math.acos(2*Math.random()-1),r=2800,k=.45+Math.random()*.55;
+ p.set([r*Math.sin(b)*Math.cos(a),r*Math.cos(b),r*Math.sin(b)*Math.sin(a)],i*3);c.set([k*(.8+Math.random()*.2),k*.9,k],i*3)}
+ const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(p,3));g.setAttribute('color',new THREE.BufferAttribute(c,3));
+ scene.add(new THREE.Points(g,new THREE.PointsMaterial({size:2,sizeAttenuation:false,vertexColors:true,depthWrite:false})));
+ [[0x1a3a9a,-1500,300,-2000,.4],[0x6a1a8a,1800,-400,-1700,.3],[0x0a7a8a,-300,900,1900,.25]].forEach(n=>{const s=sprite(n[0],n[4]);s.scale.setScalar(3200);s.position.set(n[1],n[2],n[3]);scene.add(s)});
+ const sg=sprite(0xffe2b0,.9);sg.scale.setScalar(700);sg.position.set(1500,550,1000);scene.add(sg)}
+
+/* Helios Station (Mission Hub) */
+const station=new THREE.Group(),SM=new THREE.MeshStandardMaterial({color:0xdfe6f0,metalness:.6,roughness:.4}),SG=new THREE.MeshStandardMaterial({color:0xd9a441,metalness:.8,roughness:.3}),SB=new THREE.MeshStandardMaterial({color:0x1a3b8a,metalness:.5,roughness:.4});
+const cyl=(r,l,m,z)=>{const o=new THREE.Mesh(new THREE.CylinderGeometry(r,r,l,20).rotateX(Math.PI/2),m);o.position.z=z;station.add(o)};
+cyl(.05,.9,SM,0);cyl(.09,.28,SG,.22);cyl(.09,.28,SM,-.22);
+const ring=new THREE.Mesh(new THREE.TorusGeometry(.3,.025,10,40),SM);station.add(ring);
+[-1,1].forEach(s=>[-.38,.4].forEach(z=>{const w=new THREE.Mesh(new THREE.BoxGeometry(.55,.01,.18),SB);w.position.set(s*.4,0,z);station.add(w)}));
+const lt=sprite(0x4fd8ff,.9);lt.scale.setScalar(.1);lt.position.set(0,.1,.45);station.add(lt);
+station.position.set(3.9,.5,0);station.scale.setScalar(1.3);scene.add(station);
+
+/* trajectory (illustrative) */
+const P=[];for(let a=0;a<=360;a+=30){const r=a*Math.PI/180;P.push(new THREE.Vector3(3*Math.cos(r),0,3*Math.sin(r)))}
+P.push(...[[6,.5,10],[25,1,28],[60,2,36],[95,2,24],[108,1.5,12]].map(a=>new THREE.Vector3(...a)));
+[100,60,20,-20,-60,-100].forEach(d=>{const r=d*Math.PI/180;P.push(new THREE.Vector3(120+1.8*Math.cos(r),0,1.8*Math.sin(r)))});
+P.push(...[[108,-1.5,-12],[95,-2,-24],[60,-2,-36],[25,-1,-28],[6,-.5,-10],[1.5,0,-1.4]].map(a=>new THREE.Vector3(...a)));
+const N=P.length,curve=new THREE.CatmullRomCurve3(P,false,'catmullrom',.5);
+const KF=[[0,0],[1.5,12],[8,14],[28,15],[56,16],[70,17.5],[76,18],[79,20.5],[82,23],[86,24],[116,26],[150,27],[168,28],[178,29]],END=178,PAD=new THREE.Vector3(2.02,0,0);
+const idxAt=h=>{for(let i=0;i<KF.length-1;i++)if(h<=KF[i+1][0]){const a=KF[i],b=KF[i+1];return a[1]+(b[1]-a[1])*(h-a[0])/(b[0]-a[0])}return 29};
+const pos=h=>{h=Math.max(0,Math.min(END,h));const c=curve.getPoint(idxAt(h)/(N-1));if(h<.2){const k=h/.2;return PAD.clone().lerp(c,k*k*(3-2*k))}return c};
+const phCol=i=>i<12?0x3aa0ff:i<17.5?0x4fd8ff:i<24?0xffd36b:i<28.5?0xb48cff:0xff7a3c;
+const pts=curve.getPoints(900),pa=new Float32Array(pts.length*3),ca=new Float32Array(pts.length*3);
+pts.forEach((v,i)=>{pa.set([v.x,v.y,v.z],i*3);const c=new THREE.Color(phCol(i/900*(N-1)));ca.set([c.r,c.g,c.b],i*3)});
+const lg=g=>{const o=new THREE.BufferGeometry();o.setAttribute('position',new THREE.BufferAttribute(pa,3));o.setAttribute('color',new THREE.BufferAttribute(ca,3));return o};
+const trail=new THREE.Line(lg(),new THREE.LineBasicMaterial({vertexColors:true,transparent:true,opacity:.3}));scene.add(trail);
+const done=new THREE.Line(lg(),new THREE.LineBasicMaterial({vertexColors:true}));done.geometry.setDrawRange(0,0);scene.add(done);
+
+/* spacecraft */
+const ship=new THREE.Group(),M1=new THREE.MeshStandardMaterial({color:0xeeeeee,metalness:.6,roughness:.35}),M2=new THREE.MeshStandardMaterial({color:0xd9a441,metalness:.8,roughness:.3});
+const cone=new THREE.Mesh(new THREE.ConeGeometry(.12,.2,24).rotateX(Math.PI/2),M1);cone.position.z=.2;
+const body=new THREE.Mesh(new THREE.CylinderGeometry(.12,.12,.24,24).rotateX(Math.PI/2),M2);
+const noz=new THREE.Mesh(new THREE.ConeGeometry(.07,.1,16).rotateX(-Math.PI/2),M1);noz.position.z=-.17;
+ship.add(cone,body,noz);[-1,1].forEach(s=>{const w=new THREE.Mesh(new THREE.BoxGeometry(.5,.01,.13),new THREE.MeshStandardMaterial({color:0x1a3b8a,metalness:.5,roughness:.4}));w.position.x=s*.37;ship.add(w)});
+const flame=sprite(0xff9d3c);flame.position.z=-.4;flame.scale.setScalar(.7);ship.add(flame);scene.add(ship);
+const beacon=sprite(0x4fd8ff,.9);scene.add(beacon);
+
+/* events + pacing */
+const EV=[
+{h:0,n:'LIFTOFF',cam:['follow',3.2],m:"Liftoff! Engines at full thrust. That orange flame is the burn that lifts us out of the atmosphere."},
+{h:.2,n:'ORBIT INSERTION',cam:['follow',8],m:"We're in Earth orbit. We check every system here before committing to the Moon. (The orbit is drawn higher than real, for clarity.)"},
+{h:1.5,n:'TRANS-LUNAR INJECTION',cam:['follow',12],m:"One long burn adds just enough speed for the Moon's gravity to capture our path."},
+{h:28,n:'TRAJECTORY CORRECTION',cam:['follow',9],m:"A small course correction. Over 380,000 km, tiny errors grow — tiny nudges now save lots of fuel."},
+{h:79,n:'LUNAR FLYBY',cam:['follow',6],m:"We swing behind the Moon. Its gravity bends our path back to Earth — a free-return trajectory, no big burn needed."},
+{h:90,n:'HEADING HOME',cam:['overview',200],m:"Coasting home on the path the Moon's gravity shaped for us."},
+{h:178,n:'SPLASHDOWN',cam:['follow',5],m:"Re-entry complete and splashdown! Mission accomplished. Great flying, explorer."}];
+const BUR=[[0,.2],[1.4,1.6],[27.9,28.1]];
+const B=[0,.2,1.4,1.8,27.8,28.2,68,84,178],RT=[.025,.2,.05,2.5,.15,6,.8,8];
+const S=[0];RT.forEach((r,i)=>S.push(S[i]+(B[i+1]-B[i])/r));const TOT=S[8];
+const rateAt=h=>{for(let i=0;i<8;i++)if(h<B[i+1])return RT[i];return RT[7]};
+const posOf=h=>{for(let i=0;i<8;i++)if(h<=B[i+1])return(S[i]+(h-B[i])/RT[i])/TOT;return 1};
+const hoursOf=p=>{const s=p*TOT;for(let i=0;i<8;i++)if(s<=S[i+1])return B[i]+(s-S[i])*RT[i];return END};
+const phase=h=>h<.2?'Ascent':h<1.4?'Earth orbit':h<1.8?'Trans-lunar burn':h<70?'Outbound coast':h<86?'Lunar flyby':h<170?'Return coast':'Re-entry';
+const tl=$('#tl');EV.forEach(e=>{const d=document.createElement('div');d.className='mk';d.title=e.n;d.style.left=posOf(e.h)*100+'%';d.onpointerdown=ev=>{ev.stopPropagation();seek(e.h)};tl.appendChild(d)});
+const mkSprites=EV.slice(1,6).map(e=>{const s=sprite(0xffd36b,.85);s.userData.p=pos(e.h);s.position.copy(s.userData.p);scene.add(s);return s});
+
+/* state */
+let explore='guided',state='menu',H=0,playing=true,speed=1,fired=0,cine=true,comp=true,voice=false,snd=true;
+const SP=[.5,1,2,4];let si=1;
+
+/* audio */
+let AC,master,engG;
+function initAudio(){if(AC)return;AC=new(window.AudioContext||window.webkitAudioContext)();master=AC.createGain();master.gain.value=snd?.6:0;master.connect(AC.destination);
+ [55,82.4,110.5].forEach((f,i)=>{const o=AC.createOscillator(),g=AC.createGain();o.frequency.value=f*(1+i*.003);g.gain.value=.05;o.connect(g).connect(master);o.start()});
+ const nb=AC.createBuffer(1,AC.sampleRate*2,AC.sampleRate),d=nb.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;
+ const ns=AC.createBufferSource(),lp=AC.createBiquadFilter();ns.buffer=nb;ns.loop=true;lp.type='lowpass';lp.frequency.value=220;engG=AC.createGain();engG.gain.value=0;ns.connect(lp).connect(engG).connect(master);ns.start()}
+function beep(f=880,d=.12,v=.12,t='sine'){if(!AC)return;const o=AC.createOscillator(),g=AC.createGain();o.type=t;o.frequency.value=f;g.gain.setValueAtTime(v,AC.currentTime);g.gain.exponentialRampToValueAtTime(.001,AC.currentTime+d);o.connect(g).connect(master);o.start();o.stop(AC.currentTime+d)}
+const chirp=()=>{beep(1400,.05,.07,'square');setTimeout(()=>beep(1900,.06,.07,'square'),80)};
+const setSnd=v=>{snd=v;if(master)master.gain.value=v?.6:0;$('#bSnd').textContent='Sound: '+(v?'On':'Off');$('#bSnd').classList.toggle('on',v);$('#oSnd').textContent='Sound: '+(v?'On':'Off');$('#oSnd').classList.toggle('on',v)};
+function say(t){if(voice&&window.speechSynthesis){speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.lang='en-US';u.rate=1.02;speechSynthesis.speak(u)}}
+const setVoice=v=>{voice=v;if(!v&&window.speechSynthesis)speechSynthesis.cancel();$('#bVoice').textContent='Voice: '+(v?'On':'Off');$('#oVoice').textContent='Voice narration: '+(v?'On':'Off');$('#oVoice').classList.toggle('on',v)};
+const ROBOT=$('#bubble svg').outerHTML,ASTRO='<svg viewBox="0 0 44 44" width="44" height="44"><rect x="12" y="30" width="20" height="12" rx="5" fill="#e8eef8"/><rect x="19" y="34" width="6" height="4" rx="1" fill="#ff9d3c"/><circle cx="22" cy="19" r="15" fill="#f4f7fc" stroke="#9db4d0" stroke-width="1.5"/><rect x="11" y="12" width="22" height="15" rx="7" fill="#0d2347" stroke="#4fd8ff" stroke-width="1.5"/><ellipse cx="17" cy="16" rx="4" ry="2" fill="#4fd8ff" opacity=".5"/></svg>';let av=0;
+const setComp=i=>{av=i%3;const a=[['AURA',ROBOT,'AURA robot'],['NOVA',ASTRO,'NOVA astronaut'],['',null,'None']][av];comp=!!a[1];if(comp){$('#bubble svg').outerHTML=a[1];$('#bubble b').textContent=a[0]}else $('#bubble').style.display='none';$('#bComp').classList.toggle('on',comp);$('#oComp').classList.toggle('on',comp);$('#oComp').textContent='Companion: '+a[2]};
+
+/* camera */
+let mode='earth',T=new THREE.Vector3(),rad=7,radG=7,az=.9,el=.25,tg=new THREE.Vector3();
+function setMode(m,r){mode=m;radG=r||({overview:200,earth:12,moon:7,follow:4,hub:2.6})[m];document.querySelectorAll('#cams [data-m]').forEach(b=>b.classList.toggle('on',b.dataset.m===m))}
+document.querySelectorAll('#cams [data-m]').forEach(b=>b.onclick=()=>{cine=false;$('#cine').classList.remove('on');$('#cine').textContent='Cinema: Off';setMode(b.dataset.m)});
+$('#cine').onclick=()=>{cine=!cine;$('#cine').classList.toggle('on',cine);$('#cine').textContent='Cinema: '+(cine?'On':'Off')};
+const ptrs=new Map();
+cv.addEventListener('pointerdown',e=>{cv.setPointerCapture(e.pointerId);ptrs.set(e.pointerId,[e.clientX,e.clientY])});
+cv.addEventListener('pointermove',e=>{const o=ptrs.get(e.pointerId);if(!o)return;
+ if(ptrs.size===1){az-=(e.clientX-o[0])*.005;el=Math.max(-1.4,Math.min(1.4,el+(e.clientY-o[1])*.005))}
+ else if(ptrs.size===2){const q=[...ptrs.entries()].find(k=>k[0]!==e.pointerId)[1];radG=Math.max(1.2,Math.min(700,radG*Math.hypot(o[0]-q[0],o[1]-q[1])/Math.max(20,Math.hypot(e.clientX-q[0],e.clientY-q[1]))))}
+ ptrs.set(e.pointerId,[e.clientX,e.clientY])});
+['pointerup','pointercancel'].forEach(t=>cv.addEventListener(t,e=>ptrs.delete(e.pointerId)));
+cv.addEventListener('wheel',e=>{e.preventDefault();radG=Math.max(1.2,Math.min(700,radG*Math.exp(e.deltaY*.001)))},{passive:false});
+
+/* flow */
+let tt;const toast=t=>{const e=$('#toast');e.textContent=t;e.style.opacity=1;clearTimeout(tt);tt=setTimeout(()=>e.style.opacity=0,2600)};
+function fire(e){toast(e.n);chirp();if(comp){$('#bubble').style.display='flex';$('#bt').textContent=e.m}say(e.m);if(cine)setMode(e.cam[0],e.cam[1]);
+ if(e.h===END)setTimeout(()=>{if(H>=END-.01){$('#sumL').innerHTML=EV.map(x=>`<li><b>${x.n}</b> — ${fmt(x.h)}</li>`).join('');$('#sum').style.display='flex'}},3200)}
+function seek(h){H=Math.max(0,Math.min(END,h));fired=EV.filter(e=>e.h<H).length;$('#sum').style.display='none'}
+const fmt=h=>{const m=Math.floor(h*60);return'D+'+Math.floor(m/1440)+' '+String(Math.floor(m%1440/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0')};
+function pt(ev){const r=tl.getBoundingClientRect();seek(hoursOf(Math.max(0,Math.min(1,(ev.clientX-r.left)/r.width))))}
+let drag=false;tl.onpointerdown=e=>{drag=true;tl.setPointerCapture(e.pointerId);pt(e)};tl.onpointermove=e=>{if(drag)pt(e)};tl.onpointerup=()=>drag=false;
+$('#bPlay').onclick=()=>{playing=!playing;$('#bPlay').textContent=playing?'Pause':'Play'};
+$('#bSpd').onclick=()=>{si=(si+1)%4;speed=SP[si];$('#bSpd').textContent='Speed '+speed+'×'};
+$('#bSnd').onclick=()=>setSnd(!snd);$('#oSnd').onclick=()=>{initAudio();setSnd(!snd)};
+$('#bVoice').onclick=()=>setVoice(!voice);$('#oVoice').onclick=()=>setVoice(!voice);
+$('#bComp').onclick=()=>setComp(av+1);$('#oComp').onclick=()=>setComp(av+1);
+$('#bEnter').onclick=()=>{if(modeSel==='design'){openStudio();return}state='brief';setMode('overview',150);$('#ovA').style.display='none';$('#ovB').style.display='flex';initAudio();chirp()};
+$('#bBack').onclick=()=>{state='select';H=0;setMode('hub');$('#ovB').style.display='none';$('#ovA').style.display='flex'};
+$('#bGo').onclick=()=>{initAudio();$('#ovB').style.display='none';startCount()};
+$('#bRe').onclick=()=>{$('#sum').style.display='none';startCount()};$('#bCl').onclick=()=>$('#sum').style.display='none';
+function startCount(){state='count';H=0;fired=0;playing=true;$('#bPlay').textContent='Pause';cine=explore==='guided';$('#cine').classList.toggle('on',cine);$('#cine').textContent='Cinema: '+(cine?'On':'Off');
+ ['#hud','#bar'].forEach(s=>$(s).style.display='block');$('#cams').style.display='flex';$('#bar').style.display='flex';$('#bubble').style.display='none';
+ setMode('follow',3.2);az=2.2;el=.15;const cd=$('#cd'),t=$('#cdt');cd.style.display='flex';let n=3;t.textContent='T-'+n;beep(660,.2,.15);
+ if(engG)engG.gain.setTargetAtTime(.25,AC.currentTime,2);
+ const iv=setInterval(()=>{n--;if(n>0){t.textContent='T-'+n;beep(660,.2,.15)}else{clearInterval(iv);t.textContent='LIFTOFF';beep(1200,.5,.2);state='run';fire(EV[0]);fired=1;setTimeout(()=>cd.style.display='none',900)}},1000)}
+
+/* cabin: Screen 01 / 02 — view of Earth from a spacecraft window */
+scene.add(cam);const cabin=new THREE.Group();cabin.visible=false;cam.add(cabin);let mx=0,my=0,sx=0,sy=0;
+addEventListener('pointermove',e=>{mx=e.clientX/innerWidth-.5;my=e.clientY/innerHeight-.5});
+function rrP(p,x,y,w,h,r){p.moveTo(x+r,y);p.lineTo(x+w-r,y);p.absarc(x+w-r,y+r,r,-Math.PI/2,0,false);p.lineTo(x+w,y+h-r);p.absarc(x+w-r,y+h-r,r,0,Math.PI/2,false);p.lineTo(x+r,y+h);p.absarc(x+r,y+h-r,r,Math.PI/2,Math.PI,false);p.lineTo(x,y+r);p.absarc(x+r,y+r,r,Math.PI,Math.PI*1.5,false)}
+function rrC(g,x,y,w,h,r){g.beginPath();g.moveTo(x+r,y);g.arcTo(x+w,y,x+w,y+h,r);g.arcTo(x+w,y+h,x,y+h,r);g.arcTo(x,y+h,x,y,r);g.arcTo(x,y,x+w,y,r);g.closePath()}
+function buildCabin(){
+ cabin.children.slice().forEach(o=>{cabin.remove(o);o.geometry.dispose();o.material.map&&o.material.map.dispose();o.material.dispose()});
+ const asp=cam.aspect,vh=2*Math.tan(25*Math.PI/180),vw=vh*asp,W=vw*1.12,Hh=vh*1.12,wh=vh*.46,ww=Math.min(vw*.88,wh*2.3),cy=vh*.07,r=Math.min(ww,wh)*.16;
+ const tw=asp>=1?1600:Math.round(1600*asp),th=asp>=1?Math.round(1600/asp):1600,sc=tw/W,g=document.createElement('canvas');g.width=tw;g.height=th;const c=g.getContext('2d');
+ const xc=tw/2,yc=th/2-cy*sc,wp=ww*sc,hp=wh*sc,f=Math.min(wp,hp)*.07;
+ let k=c.createLinearGradient(0,0,0,th);k.addColorStop(0,'#0a101c');k.addColorStop(.6,'#151d30');k.addColorStop(1,'#0c1220');c.fillStyle=k;c.fillRect(0,0,tw,th);
+ const ps=tw/5;c.lineWidth=2;
+ for(let x=ps/2;x<tw;x+=ps){c.strokeStyle='rgba(0,0,0,.55)';c.strokeRect(x,-5,0,th+10);c.strokeStyle='rgba(120,160,220,.1)';c.strokeRect(x+2,-5,0,th+10)}
+ for(let y=ps*.4;y<th;y+=ps*.8){c.strokeStyle='rgba(0,0,0,.55)';c.strokeRect(-5,y,tw+10,0);c.strokeStyle='rgba(120,160,220,.1)';c.strokeRect(-5,y+2,tw+10,0);
+  for(let x=ps/2;x<tw;x+=ps){c.fillStyle='rgba(150,180,230,.25)';c.beginPath();c.arc(x+10,y+10,3,0,7);c.fill()}}
+ k=c.createRadialGradient(xc,yc,0,xc,yc,Math.max(tw,th)*.7);k.addColorStop(0,'rgba(70,140,255,.16)');k.addColorStop(1,'rgba(70,140,255,0)');c.fillStyle=k;c.fillRect(0,0,tw,th);
+ /* console sill + indicator lights */
+ const sy0=yc+hp/2+f*2.4;k=c.createLinearGradient(0,sy0,0,th);k.addColorStop(0,'rgba(40,58,92,.7)');k.addColorStop(1,'rgba(10,16,30,.3)');c.fillStyle=k;c.fillRect(0,sy0,tw,th-sy0);
+ c.fillStyle='rgba(120,180,255,.4)';c.fillRect(0,sy0,tw,3);
+ [[.05,.2],[.8,.95]].forEach(z=>{for(let i=0;i<8;i++){const col=['#4fd8ff','#ff9d3c','#5dff9a'][i%3];c.fillStyle=col;c.shadowColor=col;c.shadowBlur=10;c.fillRect(tw*(z[0]+(z[1]-z[0])*i/7),sy0+th*.05,16,6);c.shadowBlur=0;c.fillStyle='rgba(255,255,255,.08)';c.fillRect(tw*(z[0]+(z[1]-z[0])*i/7),sy0+th*.09,16,34)}});
+ /* window frame */
+ k=c.createLinearGradient(xc-wp/2,yc-hp/2,xc+wp/2,yc+hp/2);k.addColorStop(0,'#d5deec');k.addColorStop(.5,'#7b879c');k.addColorStop(1,'#303a4e');
+ rrC(c,xc-wp/2-f,yc-hp/2-f,wp+2*f,hp+2*f,r+f);c.fillStyle=k;c.fill();
+ rrC(c,xc-wp/2,yc-hp/2,wp,hp,r);c.strokeStyle='#05080f';c.lineWidth=f*.5;c.stroke();
+ rrC(c,xc-wp/2-f*1.6,yc-hp/2-f*1.6,wp+3.2*f,hp+3.2*f,r+f*1.6);c.strokeStyle='rgba(79,216,255,.55)';c.lineWidth=2;c.stroke();
+ [[.12,-1],[.5,-1],[.88,-1],[.12,1],[.5,1],[.88,1]].forEach(b=>{const bx=xc-wp/2+wp*b[0],by=yc+b[1]*(hp/2+f*.5);c.beginPath();c.arc(bx,by,f*.22,0,7);c.fillStyle='#222b3d';c.fill();c.strokeStyle='#aab6cc';c.lineWidth=1.5;c.stroke()});
+ k=c.createRadialGradient(xc,th/2,Math.min(tw,th)*.35,xc,th/2,Math.max(tw,th)*.75);k.addColorStop(0,'rgba(0,0,0,0)');k.addColorStop(1,'rgba(0,0,0,.55)');c.fillStyle=k;c.fillRect(0,0,tw,th);
+ const sh=new THREE.Shape();sh.moveTo(-W/2,-Hh/2);sh.lineTo(W/2,-Hh/2);sh.lineTo(W/2,Hh/2);sh.lineTo(-W/2,Hh/2);sh.closePath();
+ const hl=new THREE.Path();rrP(hl,-ww/2,cy-wh/2,ww,wh,r);sh.holes.push(hl);
+ const geo=new THREE.ShapeGeometry(sh,14),p=geo.attributes.position,uv=geo.attributes.uv;
+ for(let i=0;i<p.count;i++)uv.setXY(i,(p.getX(i)+W/2)/W,(p.getY(i)+Hh/2)/Hh);
+ const tx=new THREE.CanvasTexture(g);tx.anisotropy=4;const m=new THREE.Mesh(geo,new THREE.MeshBasicMaterial({map:tx}));m.position.z=-1;cabin.add(m)}
+function cabCam(now){const t=now/1e3,a=1.15+Math.sin(t/24)*.8;sx+=(mx-sx)*.05;sy+=(my-sy)*.05;
+ cam.position.set(3.7*Math.sin(a),.5+Math.sin(t/17)*.1,3.7*Math.cos(a));cam.lookAt(0,0,0);cam.rotateX(.6);cam.rotateZ(Math.sin(t/9)*.01);cabin.position.set(-sx*.05,sy*.035,0)}
+let rz;window.onRz=()=>{clearTimeout(rz);rz=setTimeout(buildCabin,100)};buildCabin();
+
+/* screen flow: 01 Welcome → 02 Avatar → Mission select */
+const go=f=>{const e=$('#fade');e.style.opacity=1;setTimeout(()=>{f();e.style.opacity=0},420)};let pick=-1;
+document.querySelectorAll('.md').forEach(b=>b.onclick=()=>{explore=b.dataset.x;document.querySelectorAll('.md').forEach(x=>x.classList.toggle('on',x===b))});
+$('#bStart').onclick=()=>{initAudio();chirp();state='avatar';$('#ovM').style.display='none';$('#ovAv').style.display='flex'};
+document.querySelectorAll('.av').forEach(b=>b.onclick=()=>{pick=+b.dataset.i;document.querySelectorAll('.av').forEach(x=>x.classList.toggle('sel',x===b));$('#bAvOk').disabled=false;chirp()});
+$('#bAvBack').onclick=()=>{state='menu';$('#ovAv').style.display='none';$('#ovM').style.display='flex'};
+$('#bAvOk').onclick=()=>{setComp(pick);go(()=>{state='select';setMode('hub');$('#ovAv').style.display='none';$('#ovA').style.display='flex'})};
+$('#bBack0').onclick=()=>go(()=>{state='avatar';$('#ovA').style.display='none';$('#ovAv').style.display='flex'});
+
+/* ===== Mission Design Studio ===== */
+let modeSel='design',tab=0,timer=0;
+const SC=[{id:'eo',n:'Earth Watch',bud:140,need:55,life:3,dl:48,orb:['leo','sso','geo'],real:'Landsat 9 and Sentinel-2',t:'Monitor climate, forests and coastlines from orbit. Needs sharp images and lots of data sent home.'},
+{id:'lun',n:'Lunar Mapper',bud:200,need:50,life:2,dl:60,orb:['llo'],real:'NASA Lunar Reconnaissance Orbiter',t:'Map the Moon and search for ice. Needs a rocket that can reach the Moon.'},
+{id:'tel',n:'Deep-Sky Telescope',bud:480,need:60,life:4,dl:84,orb:['l2'],real:'James Webb Space Telescope',t:'Study distant galaxies and exoplanets. Needs steady pointing and a calm, faraway orbit.'}];
+const DF=[{n:'Easy',bm:1.35,ev:.08,t:'More budget, fewer surprises. Good for learning.'},{n:'Normal',bm:1,ev:.16,t:'Balanced budget and occasional problems.'},{n:'Hard',bm:.85,ev:.28,t:'Tight budget and frequent anomalies.'},{n:'Sandbox',bm:99,ev:.12,t:'No budget limit. Experiment freely.'}];
+const BUS=[{n:'CubeSat 12U',m:24,load:10,c:3,life:2,cap:12,rel:.8,dev:18,ops:.5,t:'Tiny and cheap, but very little room for instruments and power.'},{n:'SmallSat',m:120,load:60,c:22,life:4,cap:100,rel:.9,dev:30,ops:2,t:'A balanced platform for focused science missions.'},{n:'Large Observatory bus',m:650,load:250,c:110,life:8,cap:450,rel:.95,dev:54,ops:6,t:'Carries heavy instruments and lasts longer, but costs more and needs a big rocket.'}];
+const ARR=[{n:'Small solar array',m:8,c:1.5,w:60,t:'Light and cheap, but powers only a few instruments.'},{n:'Medium solar array',m:35,c:6,w:320,t:'Good for a modest payload.'},{n:'Large solar array',m:140,c:20,w:1400,t:'Plenty of power, but heavy and expensive.'}];
+const BAT=[{n:'Small battery',m:3,c:.5,k:.4,t:'Keeps the spacecraft alive in Earth’s shadow only briefly.'},{n:'Medium battery',m:15,c:3,k:.7,t:'Covers typical eclipses.'},{n:'Large battery',m:60,c:12,k:1,t:'Best for orbits with long shadows and for solar storms.'}];
+const ANT=[{n:'Low-gain antenna',m:1,p:5,c:.5,mbps:.5,t:'Simple, but sends data home very slowly.'},{n:'Medium dish',m:8,p:20,c:4,mbps:10,t:'A moderate data rate.'},{n:'High-gain dish',m:35,p:60,c:15,mbps:60,t:'Sends lots of data, but weighs more and uses more power.'}];
+const PTG=[{n:'Basic pointing',m:2,p:3,c:1,k:1,t:'Good enough for wide-area imaging.'},{n:'Precise pointing',m:8,p:12,c:6,k:2,t:'Holds the spacecraft very steady. Telescopes need it.'}];
+const RED=[{n:'Single computer',m:5,c:1,k:0,t:'Cheaper, but one fault can end the mission.'},{n:'Redundant computers',m:12,c:6,k:1,t:'A backup computer survives many failures.'}];
+const INS=[{n:'Visible camera',m:6,p:15,c:4,d:2,dev:6,s:{eo:20,lun:22,tel:8},t:'Simple and cheap pictures in visible light.'},{n:'Multispectral imager',m:22,p:45,c:14,d:8,dev:12,s:{eo:38,lun:24,tel:6},t:'Sees many colours to reveal crops, water and minerals.'},{n:'Radar sounder',m:60,p:120,c:35,d:6,dev:18,s:{eo:22,lun:40,tel:0},t:'Looks under the surface, for example for ice.'},{n:'Infrared spectrometer',m:30,p:60,c:22,d:3,dev:14,s:{eo:26,lun:30,tel:28},t:'Measures the chemistry of surfaces and atmospheres.'},{n:'0.5 m space telescope',m:140,p:90,c:60,d:12,dev:30,s:{eo:0,lun:0,tel:60},t:'The key instrument for deep-sky science.'},{n:'Magnetometer',m:3,p:3,c:2,d:.2,dev:4,s:{eo:5,lun:12,tel:2},t:'Tiny and cheap, adds a little science.'}];
+const OR=[{id:'leo',n:'Low Earth Orbit (500 km)',sun:.62,hrs:.6,rate:1,life:.8,rad:.1,q:1,t:'Close to Earth: sharp images and easy launch, but short ground passes and some drag.'},{id:'sso',n:'Sun-synchronous (700 km)',sun:.97,hrs:.9,rate:1,life:1,rad:.15,q:1.1,t:'Sees each place at the same local time and gets sunlight almost always.'},{id:'geo',n:'Geostationary (35,786 km)',sun:.97,hrs:24,rate:.4,life:1.2,rad:.4,q:.75,t:'Hovers over one spot and always talks to the ground, but is far and hard to reach.'},{id:'llo',n:'Low Lunar Orbit (100 km)',sun:.75,hrs:7,rate:.3,life:.9,rad:.3,q:1,t:'Circles the Moon. Needs a powerful rocket and long-distance communication.'},{id:'l2',n:'Sun–Earth L2 (1.5 M km)',sun:1,hrs:6,rate:.15,life:1.2,rad:.5,q:1,t:'A calm, cold point behind Earth, ideal for telescopes but very far for radio.'}];
+const LV=[{n:'Light Launcher',c:8,rel:.88,cap:{leo:250,sso:180,geo:0,llo:0,l2:0},t:'Cheap, but carries little and cannot leave Earth’s neighbourhood.'},{n:'Medium Launcher',c:55,rel:.94,cap:{leo:3500,sso:2500,geo:800,llo:500,l2:400},t:'A flexible, mid-priced rocket.'},{n:'Heavy Launcher',c:150,rel:.97,cap:{leo:15000,sso:10000,geo:5000,llo:3000,l2:2500},t:'Reaches anywhere, but uses much of the budget.'}];
+const ROL=['Mission Planner','Spacecraft Engineer','Science Lead','Resource Manager'],GOAL=['Right orbit for the objective and enough lifetime','Power, mass and data margins in the green','Enough science value for the objective','Under 92% of budget and on schedule'];
+const CM=['CML 1 · Mission concept','CML 2 · Trade study','CML 2 · Trade study','CML 3 · Point design','CML 4 · Design review'];
+let ST={sc:0,dif:1,bus:1,arr:1,bat:1,ant:2,pt:0,red:0,ins:[0,1],orb:1,lv:1,pl:1,seat:0,team:'Team Helios'};
+const GR={sc:['Mission objective',SC,0],dif:['Difficulty',DF,0],bus:['Spacecraft bus',BUS,1],arr:['Solar array',ARR,1],bat:['Battery',BAT,1],ant:['Communications antenna',ANT,1],pt:['Pointing system',PTG,1],red:['Onboard computer',RED,1],ins:['Scientific instruments (pick any)',INS,2],orb:['Orbit',OR,0],lv:['Launch vehicle',LV,3]};
+const TB=[['1 Mission',['sc','dif']],['2 Spacecraft',['bus','arr','bat','ant','pt','red']],['3 Payload',['ins']],['4 Launch & Orbit',['orb','lv']],['5 Team & Review',[]]];
+const seatOf=r=>r%ST.pl,ed=k=>ST.pl===1||seatOf(GR[k][2])===ST.seat,pc=v=>Math.round(v*100);
+const stat=o=>[o.m!=null&&o.m+' kg',o.w&&'makes '+o.w+' W',(o.p||o.load)&&'uses '+(o.p||o.load)+' W',o.c!=null&&'$'+o.c+'M',o.d&&o.d+' GB/day',o.mbps&&o.mbps+' Mbps',o.life&&o.life+' yr',o.bud&&'budget $'+o.bud+'M',o.cap&&'lifts '+o.cap[OR[ST.orb].id]+' kg here'].filter(Boolean).join(' · ');
+
+function calc(){const s=ST,sc=SC[s.sc],o=OR[s.orb],b=BUS[s.bus],A=ARR[s.arr],B=BAT[s.bat],C=ANT[s.ant],P=PTG[s.pt],R=RED[s.red],L=LV[s.lv],I=s.ins.map(i=>INS[i]),f=k=>I.reduce((a,x)=>a+x[k],0);
+ const im=f('m'),ip=f('p'),ic=f('c'),id=f('d'),mass=b.m+A.m+B.m+C.m+P.m+R.m+im,load=b.load+C.p+P.p+ip,gen=A.w*(o.sun+(1-o.sun)*B.k*.6),cap=L.cap[o.id],dl=C.mbps*o.hrs*o.rate*.45,life=b.life*o.life,
+ bud=sc.bud*DF[s.dif].bm,cost=b.c+A.c+B.c+C.c+P.c+R.c+ic+L.c+b.ops*life,dev=Math.max(b.dev,...I.map(x=>x.dev),0)+I.length*1.5+P.k*2+R.k*3+s.lv*3+6,orbOK=sc.orb.includes(o.id);
+ const raw=Math.min(100,I.reduce((a,x)=>a+x.s[sc.id],0))*(sc.id==='tel'&&P.k<2?.4:1)*(sc.id==='eo'?o.q:1)*(orbOK?1:.1),pr=Math.min(1,gen/load),dr=id?Math.min(1,dl/id):1,lr=Math.min(1,life/sc.life),sci=raw*pr*dr*lr,sb=s.dif===3;
+ const lp=cap>0&&mass<=cap?L.rel*(mass>cap*.9?.93:1):0,iss=[],blk=[];
+ if(mass>cap)blk.push(cap?'The spacecraft ('+Math.round(mass)+' kg) is too heavy for this rocket ('+cap+' kg to this orbit). Choose a bigger rocket, a lighter design or a closer orbit.':'This rocket cannot reach this orbit. Choose a bigger launch vehicle.');
+ if(im>b.cap)blk.push('Instruments ('+im+' kg) do not fit on this bus (payload limit '+b.cap+' kg). Pick a bigger bus or fewer instruments.');
+ if(!I.length)blk.push('Choose at least one instrument.');
+ if(!orbOK)iss.push('This orbit does not suit the objective, so almost no useful science will be collected.');
+ if(sc.id==='tel'&&P.k<2)iss.push('A telescope needs precise pointing. Without it the images blur and science drops by 60%.');
+ if(pr<1)iss.push('Not enough power: the spacecraft makes '+Math.round(gen)+' W but needs '+load+' W, so instruments will be throttled. Add a bigger solar array or drop a power-hungry instrument.');
+ if(dr<.9)iss.push('Communications bottleneck: instruments create '+id.toFixed(1)+' GB/day but only '+dl.toFixed(1)+' GB/day can be sent home. Use a bigger antenna, fewer data-heavy instruments, or an orbit with longer contact time.');
+ if(lr<1)iss.push('Lifetime is '+life.toFixed(1)+' years but the objective needs '+sc.life+'. A larger bus lasts longer.');
+ if(!sb&&cost>bud)iss.push('Over budget by $'+Math.round(cost-bud)+'M. Remove costly parts or pick a cheaper rocket.');
+ if(dev>sc.dl)iss.push('Development takes '+Math.round(dev)+' months but the deadline is '+sc.dl+'. Simpler instruments and fewer extras save time.');
+ if(!blk.length&&mass>cap*.9)iss.push('Thin mass margin: real teams keep 10% or more spare mass because designs always grow.');
+ const rs=[orbOK&&life>=sc.life,pr>=1&&gen>=load*1.1&&mass<=cap*.9&&dr>=.9,sci>=sc.need,(sb||cost<=bud*.92)&&dev<=sc.dl];
+ return{sc,o,b,A,B,C,P,R,L,mass,load,gen,cap,dl,id,life,bud,cost,dev,sci,raw,pr,dr,lr,lp,iss,blk,rs,orbOK,sb,im}}
+const mtr=(l,v,tx,tp)=>`<div class="mt" title="${tp}"><div class="row"><span>${l}</span><span>${tx}</span></div><div class="bar"><i style="width:${Math.min(100,v*100)}%;background:${v>1?'#ff5a5a':v>.85?'#ffd36b':'#5dff9a'}"></i></div></div>`;
+function render(){const m=calc(),nm=['AURA','NOVA','Advisor'][av];
+ $('#cml').textContent=CM[tab];$('#tabs').innerHTML=TB.map((t,i)=>`<button class="${tab===i?'on':''}" data-tab="${i}">${t[0]}</button>`).join('');
+ let h='';if(ST.pl>1)h+=`<div class="note">Player ${ST.seat+1} controls: ${ROL.filter((_,r)=>seatOf(r)===ST.seat).join(', ')}. Other sections are read-only. <button data-seat="1">Pass to next player</button></div>`;
+ TB[tab][1].forEach(k=>{const[g,A,r]=GR[k];h+=`<h3>${g}<small>${ROL[r]}</small></h3><div class="og ${ed(k)?'':'ro'}">`+A.map((o,i)=>`<div class="opt ${(k==='ins'?ST.ins.includes(i):ST[k]===i)?'sel':''}" data-k="${k}" data-v="${i}" title="${o.t}"><b>${o.n}</b><small>${stat(o)}</small></div>`).join('')+`</div><p class="tip">${k==='ins'?'Every instrument adds science but also mass, power, cost and data. Hover for details.':A[ST[k]].t}</p>`});
+ if(tab===0)h+=`<div class="note"><b>Objective:</b> ${m.sc.t}<br>Need science ≥ ${m.sc.need} · lifetime ≥ ${m.sc.life} yr · ready within ${m.sc.dl} months · budget ${m.sb?'unlimited':'$'+Math.round(m.bud)+'M'}.<br><small>Segments: Launch (rocket) · Space (spacecraft) · Ground (antenna contact) · User (science return).</small></div>`;
+ if(tab===4){h+=`<h3>Team size</h3><div class="opts">${[1,2,3,4].map(n=>`<button class="${ST.pl===n?'on':''}" data-pl="${n}">${n} player${n>1?'s':''}</button>`).join('')}</div><p class="tip">With more players each person owns some sections and the team must agree on one design (take turns with “Pass to next player”).</p><h3>Team name</h3><input id="tn" maxlength="24" value="${ST.team.replace(/"/g,'')}"><h3>Role goals</h3>`+ROL.map((r,i)=>`<div class="row"><span>${m.rs[i]?'✔':'✖'} ${r} <small>(Player ${seatOf(i)+1})</small></span><span style="color:var(--mu)">${GOAL[i]}</span></div>`).join('')+`<h3>Share design</h3><textarea id="code" rows="2"></textarea><div class="opts"><button id="cEx">Export code</button><button id="cIm">Load code</button></div>`}
+ $('#pane').innerHTML=h;
+ const need=m.sci/m.sc.need;
+ $('#dash').innerHTML=`<h3>MISSION DASHBOARD</h3>`+mtr('Mass',m.cap?m.mass/m.cap:2,Math.round(m.mass)+' / '+m.cap+' kg','Total spacecraft mass compared with what the rocket can lift to this orbit.')+mtr('Power',m.load/m.gen,Math.round(m.load)+' / '+Math.round(m.gen)+' W','Power the spacecraft needs compared with what the solar array makes on average.')+mtr('Budget',m.sb?.3:m.cost/m.bud,'$'+Math.round(m.cost)+'M / '+(m.sb?'∞':'$'+Math.round(m.bud)+'M'),'Build + launch + operations cost.')+mtr('Data vs comms',m.id/Math.max(m.dl,.01),m.id.toFixed(1)+' / '+m.dl.toFixed(1)+' GB/day','Data the instruments create compared with what the antenna can send to the ground.')+mtr('Time',m.dev/m.sc.dl,Math.round(m.dev)+' / '+m.sc.dl+' months','Development time compared with the deadline.')+mtr('Lifetime',m.sc.life/m.life,m.life.toFixed(1)+' yr (need '+m.sc.life+')','Operating life compared with the objective.')+`<div class="mt"><div class="row"><span>Expected science</span><span>${Math.round(m.sci)} / ${m.sc.need}</span></div><div class="bar"><i style="width:${Math.min(100,need*100)}%;background:${need>=1?'#5dff9a':'#4fd8ff'}"></i></div></div><div class="note"><b>${nm}:</b> ${m.blk[0]||m.iss[0]||'Looks balanced. Check the Team & Review tab, then launch.'}</div>`;
+ $('#sSim').disabled=m.blk.length>0;$('#sSim').title=m.blk[0]||''}
+$('#stu').addEventListener('click',e=>{const t=e.target.closest('[data-k],[data-tab],[data-seat],[data-pl],#cEx,#cIm');if(!t)return;
+ if(t.id==='cEx'){$('#code').value=btoa(unescape(encodeURIComponent(JSON.stringify(ST))));return}
+ if(t.id==='cIm'){try{const o=JSON.parse(decodeURIComponent(escape(atob($('#code').value.trim()))));if(o&&Array.isArray(o.ins)&&SC[o.sc]&&OR[o.orb]&&LV[o.lv]&&BUS[o.bus]){ST=Object.assign(ST,o);ST.ins=o.ins.filter(i=>INS[i]);toast('DESIGN LOADED')}else throw 0}catch(x){toast('INVALID CODE')}render();return}
+ if(t.dataset.tab)tab=+t.dataset.tab;else if(t.dataset.seat)ST.seat=(ST.seat+1)%ST.pl;else if(t.dataset.pl){ST.pl=+t.dataset.pl;ST.seat=0}
+ else{const k=t.dataset.k,v=+t.dataset.v;if(!ed(k))return;if(k==='ins'){const i=ST.ins.indexOf(v);i<0?ST.ins.push(v):ST.ins.splice(i,1)}else ST[k]=v}
+ chirp();render()});
+$('#stu').addEventListener('input',e=>{if(e.target.id==='tn')ST.team=e.target.value});
+const view=n=>['v1','v2','v3'].forEach(v=>$('#'+v).style.display=v===n?'block':'none');
+function openStudio(){go(()=>{$('#ovA').style.display='none';$('#stu').style.display='flex';view('v1');render()})}
+$$=s=>document.querySelectorAll(s);
+document.querySelectorAll('#ovA .m').forEach(b=>b.onclick=()=>{modeSel=b.dataset.x;document.querySelectorAll('#ovA .m').forEach(x=>x.classList.toggle('sel',x===b))});
+$('#sBack').onclick=()=>go(()=>{$('#stu').style.display='none';$('#ovA').style.display='flex'});
+
+/* simulation */
+function drawSim(a,hit){const c=$('#sim'),g=c.getContext('2d'),o=OR[ST.orb];g.fillStyle='#02050c';g.fillRect(0,0,520,260);g.fillStyle='rgba(255,255,255,.6)';for(let i=0;i<70;i++)g.fillRect((i*97)%520,(i*57)%260,1,1);
+ const R={leo:[62,62],sso:[58,58],geo:[110,110],llo:[62,62],l2:[200,46]}[o.id],cx=o.id==='l2'?150:260;
+ if(o.id==='l2'){g.fillStyle='#ffd36b';g.shadowColor='#ffd36b';g.shadowBlur=30;g.beginPath();g.arc(14,130,10,0,7);g.fill();g.shadowBlur=0}
+ g.fillStyle=o.id==='llo'?'#9a9a9a':'#2a6fd6';g.beginPath();g.arc(cx,130,o.id==='l2'?20:36,0,7);g.fill();
+ const ox=o.id==='l2'?cx+190:cx;g.strokeStyle='rgba(79,216,255,.4)';g.setLineDash([4,4]);g.beginPath();g.ellipse(ox,130,R[0],R[1],o.id==='sso'?1.2:0,0,7);g.stroke();g.setLineDash([]);
+ const x=R[0]*Math.cos(a),y=R[1]*Math.sin(a),sr=o.id==='sso'?1.2:0;g.fillStyle=hit?'#ff5a5a':'#ffd36b';g.beginPath();g.arc(ox+x*Math.cos(sr)-y*Math.sin(sr),130+x*Math.sin(sr)+y*Math.cos(sr),5,0,7);g.fill()}
+function lb(add){let a=[];try{a=JSON.parse(localStorage.getItem('sme_lb')||'[]')}catch(e){}if(add){a.push(add);a.sort((x,y)=>y.s-x.s);a=a.slice(0,5);try{localStorage.setItem('sme_lb',JSON.stringify(a))}catch(e){}}return a}
+function runSim(){const m=calc(),d=DF[ST.dif];if(m.blk.length)return;view('v2');$('#slog').innerHTML='';clearInterval(timer);
+ const N=Math.max(6,Math.round(m.life*4)),ok=Math.random()<m.lp;let k=0,tk=0,sci=0,dead=!ok,done=0,hit=0,log=[],ev=0;
+ const L=t=>{log.push(t);$('#slog').innerHTML+=`<li>${t}</li>`};
+ if(!ok)L('<b>Launch failure.</b> The rocket did not reach orbit.');else L('Liftoff and orbit insertion successful.');
+ timer=setInterval(()=>{tk++;const a=tk*.09;drawSim(a,hit>0);if(hit>0)hit--;if(tk%6)return;
+  if(!dead&&k<N){k++;let loss=0;
+   if(Math.random()<d.ev*(1+m.o.rad*2)){ev++;const r=Math.floor(Math.random()*4);hit=5;
+    if(r===0){loss=m.B.k<.7?.5:.1;L('Solar storm: '+(m.B.k<.7?'small battery, lost half a period of science.':'battery rode it out.'))}
+    else if(r===1){loss=m.C.mbps<10?.3:.05;L('Ground station outage: '+(m.C.mbps<10?'slow link left data backlogged.':'fast antenna caught up quickly.'))}
+    else if(r===2){loss=m.R.k?.05:.25;L('Instrument anomaly: '+(m.R.k?'backup computer recovered it.':'no backup, part of the payload went dark.'))}
+    else if(Math.random()<(1-m.b.rel)*(m.R.k?.5:1)*1.5){dead=true;L('<b>Debris strike: spacecraft lost.</b>')}else{loss=.1;L('Micrometeoroid hit: minor damage.')}}
+   if(!dead){sci+=m.sci/N*(1-loss);done=k}}
+  const tp=[['Power health',Math.min(1,m.pr)],['Data returned',m.dr],['Mission progress',k/N],['Science vs need',Math.min(1,sci/m.sc.need)]];
+  $('#tel').innerHTML=tp.map(x=>mtr(x[0],1-x[1]*.8,pc(x[1])+'%','').replace(/background:[^"]+/,'background:#4fd8ff')).join('');
+  $('#slab').textContent=dead?'Mission ended':'Operating · year '+(k/4).toFixed(1)+' of '+m.life.toFixed(1);
+  if(dead||k>=N){clearInterval(timer);setTimeout(()=>report(m,ok,sci,done/N,ev,log),900)}},45)}
+function report(m,ok,sci,fr,ev,log){const sc=m.sc;
+ const p1=ok?30*fr:0,p2=25*Math.min(1,sci/sc.need),p3=m.sb?10:m.cost<=m.bud?Math.min(20,10+10*(1-m.cost/m.bud)/.3):0,p4=(m.cap&&m.mass<=m.cap*.9&&m.mass>=m.cap*.1?5:2)+(m.gen>=m.load*1.1?5:m.pr*4)+m.dr*5,p5=10*m.rs.filter(Boolean).length/4,T=Math.round(p1+p2+p3+p4+p5),G=T>=85?'A':T>=70?'B':T>=55?'C':T>=40?'D':'F';
+ const rows=[['Mission success',p1,30],['Science return',p2,25],['Budget efficiency',p3,20],['Engineering margins',p4,15],['Teamwork (role goals)',p5,10]];
+ const win=ok&&fr>=1&&sci>=sc.need,w=[];
+ if(!ok)w.push('Launch failed. Even good rockets carry risk (about '+pc(1-m.lp)+'% for this one). A larger mass margin and a more reliable rocket reduce it.');
+ else if(fr<1)w.push('The spacecraft was lost early, after '+pc(fr)+'% of its planned life. Redundant computers and a more reliable bus lower this risk.');
+ if(ok&&sci<sc.need)w.push('Science fell short ('+Math.round(sci)+' of '+sc.need+' needed). Check the notes below to see which constraint limited it.');
+ w.push(...m.iss);if(win)w.push('Every requirement was met. Different combinations of bus, instruments and orbit can also work, so try a cheaper or more daring design.');
+ const best=lb({s:T,g:G,n:ST.team,sc:sc.n,d:DF[ST.dif].n}),seg=[['Launch',ok],['Space',ok&&fr>=1],['Ground',m.dr>=.9],['User',sci>=sc.need]];
+ view('v3');$('#v3').innerHTML=`<h2>MISSION REPORT · ${sc.n.toUpperCase()}</h2><div class="gr"><div><div class="row"><span class="big2">${T}</span><span class="big2">${G}</span></div><p class="sub">${win?'Mission success!':'Mission incomplete.'} ${ev} unexpected event${ev===1?'':'s'}.</p><div class="pills">${seg.map(s=>`<span class="${s[1]?'okp':'badp'}">${s[0]} ${s[1]?'✔':'✖'}</span>`).join('')}</div>`+rows.map(r=>mtr(r[0],1-r[1]/r[2]*.8,r[1].toFixed(1)+' / '+r[2],'').replace(/background:[^"]+/,'background:#5dff9a')).join('')+`<h3>Why this happened</h3><ul class="ev">${w.map(x=>`<li>${x}</li>`).join('')}</ul><div class="note">A similar real mission: <b>${sc.real}</b>.</div></div><div class="dash p"><h3>Flight log</h3><ul class="ev">${log.map(x=>`<li>${x}</li>`).join('')}</ul><h3>Top designs</h3><ul class="ev">${best.map(b=>`<li><b>${b.n}</b> · ${b.s} (${b.g}) · ${b.sc} · ${b.d}</li>`).join('')}</ul></div></div><div class="opts"><button id="rEd" class="on">Improve design</button><button id="rMenu">Mission select</button></div>`;
+ $('#rEd').onclick=()=>{view('v1');render()};$('#rMenu').onclick=()=>go(()=>{$('#stu').style.display='none';$('#ovA').style.display='flex'})}
+$('#sSim').onclick=runSim;
+
+/* main loop */
+setMode('hub');const v1=new THREE.Vector3(),ORIG=new THREE.Vector3();
+const lab=(id,v,dy)=>{const e=$(id);if(!(state==='brief'||state==='run')||cam.position.distanceTo(v)<14){e.style.display='none';return}v1.copy(v).project(cam);if(v1.z>1){e.style.display='none';return}e.style.display='block';e.style.left=(v1.x*.5+.5)*innerWidth+'px';e.style.top=(-v1.y*.5+.5)*innerHeight+dy+'px'};let last=performance.now();
+function loop(now){requestAnimationFrame(loop);const dt=Math.min(.05,(now-last)/1e3);last=now;
+ if(state==='run'&&playing){H=Math.min(END,H+rateAt(H)*speed*dt);while(fired<EV.length&&H>=EV[fired].h){fire(EV[fired]);fired++}}
+ if(state==='brief')H=hoursOf(((now/1000)%45)/45);const cab=state==='menu'||state==='avatar';station.visible=state==='select'||state==='brief';cabin.visible=cab;trail.visible=done.visible=ship.visible=beacon.visible=!cab;mkSprites.forEach(s=>s.visible=!cab);ring.rotation.z+=dt*.4;station.rotation.y+=dt*.05;earth.rotation.y+=dt*.02;clouds.rotation.y+=dt*.03;moon.rotation.y+=dt*.01;
+ const p=pos(H),q=pos(H+.01).sub(p);ship.position.copy(p);if(q.lengthSq()>1e-10)ship.lookAt(p.clone().add(q));
+ const burn=(state==='count'||BUR.some(b=>H>=b[0]&&H<=b[1]))&&!cab&&state!=='select'&&!(state==='run'&&!playing);
+ flame.visible=burn;flame.scale.setScalar(.55+Math.random()*.25);if(engG)engG.gain.setTargetAtTime(burn?.6:0,AC.currentTime,.4);
+ done.geometry.setDrawRange(0,Math.floor(idxAt(H)/(N-1)*900)+1);
+ const d=Math.max(.5,cam.position.distanceTo(p));ship.scale.setScalar(Math.max(1,d/10));beacon.position.copy(p);beacon.scale.setScalar(d*.03);
+ mkSprites.forEach(s=>s.scale.setScalar(Math.max(.3,cam.position.distanceTo(s.position)*.025)));
+ if(state==='select'){az=Math.PI/2+Math.sin(now/6000)*.6;el=.2+.05*Math.sin(now/4000)}else if(state==='brief'||(cine&&mode==='overview'))az+=dt*.08;
+ tg.set(0,0,0);if(mode==='hub')tg.copy(station.position);else if(mode==='overview')tg.set(60,0,0);else if(mode==='moon')tg.copy(MOON);else if(mode==='follow')tg.copy(p);
+ T.lerp(tg,mode==='follow'?.3:.06);rad+=(radG-rad)*.06;
+ if(cab)cabCam(now);else{cam.position.set(T.x+rad*Math.cos(el)*Math.sin(az),T.y+rad*Math.sin(el),T.z+rad*Math.cos(el)*Math.cos(az));cam.lookAt(T)}
+ if(state!=='menu'){$('#phase').textContent=state==='count'?'Countdown':phase(H);$('#dE').textContent=Math.max(0,Math.round((p.length()-2)*RE)).toLocaleString()+' km';
+  $('#dM').textContent=Math.max(0,Math.round((p.distanceTo(MOON)-.545)*RE)).toLocaleString()+' km';$('#met').textContent=fmt(H);$('#fill').style.width=posOf(H)*100+'%'}
+ lab('#lbE',ORIG,16);lab('#lbM',MOON,16);ren.render(scene,cam)}
+requestAnimationFrame(loop);
+addEventListener('keydown',e=>{if(state==='menu'||state==='brief')return;if(e.code==='Space'){e.preventDefault();$('#bPlay').click()}
+ const m={Digit1:'follow',Digit2:'earth',Digit3:'moon',Digit4:'overview'}[e.code];if(m){cine=false;$('#cine').classList.remove('on');$('#cine').textContent='Cinema: Off';setMode(m)}if(e.code==='KeyM')setSnd(!snd)});
+</script></body></html>
